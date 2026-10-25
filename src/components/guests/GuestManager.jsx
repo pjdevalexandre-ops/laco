@@ -138,7 +138,25 @@ export default function GuestManager({ event, onUpdate }) {
     URL.revokeObjectURL(url);
   };
 
-  // Importação CSV
+  // Download do Modelo CSV para importação
+  const handleDownloadTemplate = () => {
+    const templateHeaders = ['Nome', 'Telefone', 'Status', 'Adultos', 'Criancas', 'Observacoes'];
+    const sampleRows = [
+      ['Mariana Silva', '(11) 98765-4321', 'Confirmado', '2', '1', 'Vegetariana'],
+      ['Carlos Eduardo', '(11) 91234-5678', 'Pendente', '1', '0', 'Padrinho'],
+      ['Juliana Mendes', '(21) 99887-6543', 'Nao Comparecera', '1', '0', 'Viagem a trabalho']
+    ];
+    const csvContent = '\uFEFF' + [templateHeaders.join(';'), ...sampleRows.map(r => r.join(';'))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'modelo_importacao_convidados_laco.csv';
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Importação CSV robusta (aceita vírgula e ponto e vírgula do Excel brasileiro)
   const handleImportCSV = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -153,20 +171,28 @@ export default function GuestManager({ event, onUpdate }) {
           return;
         }
 
+        // Detecta separador da primeira linha (; ou ,)
+        const delimiter = lines[0].includes(';') ? ';' : ',';
+
         let importedCount = 0;
         // Pula o cabeçalho
         for (let i = 1; i < lines.length; i++) {
-          const cols = lines[i].split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+          const cols = lines[i].split(delimiter).map(c => c.trim().replace(/^"|"$/g, ''));
           if (cols[0]) {
+            const statusStr = (cols[2] || '').toLowerCase();
             const guestItem = {
               id: `gst-imp-${Date.now()}-${i}`,
               eventId: event.id,
               name: cols[0],
               phone: cols[1] || '',
-              status: (cols[2] || '').toLowerCase().includes('nao') ? 'declined' : (cols[2] || '').toLowerCase().includes('pend') ? 'pending' : 'confirmed',
-              adultsCount: parseInt(cols[3]) || 1,
-              childrenCount: parseInt(cols[4]) || 0,
-              notes: cols[6] || '',
+              status: statusStr.includes('nao') || statusStr.includes('recus') 
+                ? 'declined' 
+                : statusStr.includes('pend') || statusStr.includes('aguard') 
+                ? 'pending' 
+                : 'confirmed',
+              adultsCount: Math.max(1, parseInt(cols[3]) || 1),
+              childrenCount: Math.max(0, parseInt(cols[4]) || 0),
+              notes: cols[5] || '',
               confirmedAt: new Date().toISOString(),
             };
             storage.addOrUpdateGuest(guestItem);
@@ -214,7 +240,7 @@ export default function GuestManager({ event, onUpdate }) {
         </div>
 
         <div className="bg-white border border-[#FADCD5] rounded-2xl p-4 shadow-xs">
-          <span className="text-[11px] uppercase tracking-wider text-[#C2410C] font-semibold block">Não Comparecerão</span>
+          <span className="text-[11px] uppercase tracking-wider text-[#C2410C] font-semibold block">Não vão</span>
           <div className="mt-2 flex items-baseline gap-1.5">
             <span className="font-serif text-3xl font-bold text-[#C2410C]">{declinedCount}</span>
             <span className="text-xs text-[#8E8679]">respostas</span>
@@ -222,6 +248,35 @@ export default function GuestManager({ event, onUpdate }) {
         </div>
 
       </div>
+
+      {/* Banner: Cobrar confirmação via WhatsApp */}
+      {(() => {
+        const pendingWithPhone = guests.filter(g => g.status === 'pending' && g.phone);
+        if (pendingWithPhone.length === 0) return null;
+        const publicUrl = `${window.location.origin}#invite=${event.slug || event.id}`;
+        return (
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-[#F0FDF4] border border-[#86EFAC] rounded-2xl px-5 py-4">
+            <div className="flex items-center gap-3">
+              <Phone className="w-5 h-5 text-[#16A34A] flex-shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-[#15803D]">
+                  {pendingWithPhone.length} convidado{pendingWithPhone.length > 1 ? 's' : ''} aguardando — com telefone cadastrado
+                </p>
+                <p className="text-xs text-[#4ADE80] mt-0.5">Clique no ícone verde <Phone className="w-3 h-3 inline" /> ao lado de cada nome para enviar o lembrete no WhatsApp.</p>
+              </div>
+            </div>
+            <a
+              href={`https://wa.me/?text=${encodeURIComponent(`Olá! 😊 Ainda estamos aguardando sua confirmação de presença. Você consegue confirmar pelo link? ${publicUrl}`)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-[#16A34A] hover:bg-[#15803D] text-white shadow-sm transition-all whitespace-nowrap"
+            >
+              <Phone className="w-3.5 h-3.5" />
+              Cobrar todos via WhatsApp
+            </a>
+          </div>
+        );
+      })()}
 
       {/* Barra de Ações: Busca, Filtros, Import/Export e Adicionar */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
@@ -243,8 +298,8 @@ export default function GuestManager({ event, onUpdate }) {
           {[
             { id: 'all', label: 'Todos' },
             { id: 'confirmed', label: 'Confirmados' },
-            { id: 'pending', label: 'Pendentes' },
-            { id: 'declined', label: 'Recusados' },
+            { id: 'pending', label: 'Aguardando' },
+            { id: 'declined', label: 'Não vão' },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -261,7 +316,17 @@ export default function GuestManager({ event, onUpdate }) {
         </div>
 
         {/* Botões de Ação */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Baixar Modelo CSV */}
+          <button
+            onClick={handleDownloadTemplate}
+            title="Baixar planilha modelo vazia para preencher"
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-white border border-[#D8CFC4] text-[#6A6357] hover:bg-[#FAF7F2] transition-all"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5 text-[#4E6037]" />
+            <span>Modelo CSV</span>
+          </button>
+
           {/* Importar CSV */}
           <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-white border border-[#D8CFC4] text-[#6A6357] hover:bg-[#FAF7F2] transition-all">
             <Upload className="w-3.5 h-3.5" />
@@ -290,8 +355,84 @@ export default function GuestManager({ event, onUpdate }) {
 
       </div>
 
-      {/* Tabela de Convidados */}
-      <div className="bg-white border border-[#E8DFC8] rounded-2xl overflow-hidden shadow-xs">
+      {/* Visualização Mobile em Cartões (sm:hidden) */}
+      <div className="sm:hidden space-y-3">
+        {filteredGuests.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-[#E8DFC8] p-8 text-center text-[#8E8679] text-xs">
+            Nenhum convidado encontrado nesta busca.
+          </div>
+        ) : (
+          filteredGuests.map((g) => (
+            <div key={g.id} className="bg-white rounded-2xl border border-[#E8DFC8] p-4 space-y-3 shadow-2xs">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <h4 className="font-semibold text-sm text-[#231F1C]">{g.name}</h4>
+                  {g.phone && <p className="text-xs text-[#7A7265] font-mono mt-0.5">{g.phone}</p>}
+                </div>
+                {g.status === 'confirmed' ? (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#EBF3E6] text-[#2C4A1D]">
+                    <CheckCircle2 className="w-3 h-3" />
+                    Confirmado
+                  </span>
+                ) : g.status === 'declined' ? (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#FDF2F2] text-[#9A3412]">
+                    <XCircle className="w-3 h-3" />
+                    Não vai
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#FEF9C3] text-[#854D0E]">
+                    <Clock className="w-3 h-3" />
+                    Aguardando
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between text-xs pt-2 border-t border-[#F2ECE1]">
+                <span className="text-[#6A6357]">
+                  Pessoas: <strong className="text-[#231F1C] tabular-nums">{g.adultsCount + g.childrenCount}</strong> ({g.adultsCount} ad. {g.childrenCount > 0 ? `/ ${g.childrenCount} cr.` : ''})
+                </span>
+                <div className="flex items-center gap-1">
+                  {g.status === 'pending' && g.phone && (
+                    <a
+                      href={`https://wa.me/55${g.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá, ${g.name.split(' ')[0]}! 😊 Ainda não recebemos sua confirmação para o evento. Consegue confirmar sua presença pelo link? ${window.location.origin}#invite=${event.slug || event.id}`)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      title="Cobrar confirmação via WhatsApp"
+                      className="p-1 text-[#25D366] hover:bg-[#F0FDF4] rounded-lg"
+                    >
+                      <Phone className="w-4 h-4" />
+                    </a>
+                  )}
+                  <button
+                    onClick={() => handleOpenEdit(g)}
+                    className="p-1 text-[#8E8679] hover:text-[#722F37] rounded-lg"
+                    title="Editar"
+                  >
+                    <Edit3 className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(g.id)}
+                    className="p-1 text-[#8E8679] hover:text-[#DC2626] rounded-lg"
+                    title="Excluir"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {g.notes && (
+                <p className="text-[11px] text-[#7A7265] bg-[#FAF7F2] p-2 rounded-lg italic">
+                  "{g.notes}"
+                </p>
+              )}
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Tabela de Convidados para Desktop (hidden sm:block) */}
+      <div className="hidden sm:block bg-white border border-[#E8DFC8] rounded-2xl overflow-hidden shadow-xs">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -370,6 +511,17 @@ export default function GuestManager({ event, onUpdate }) {
 
                       <td className="py-3.5 px-4 text-right">
                         <div className="inline-flex items-center gap-1">
+                          {g.status === 'pending' && g.phone && (
+                            <a
+                              href={`https://wa.me/55${g.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá, ${g.name.split(' ')[0]}! 😊 Ainda não recebemos sua confirmação para o evento. Consegue confirmar sua presença pelo link? ${window.location.origin}#invite=${event.slug || event.id}`)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title="Cobrar confirmação via WhatsApp"
+                              className="p-1.5 text-[#25D366] hover:bg-[#F0FDF4] rounded-lg transition-all"
+                            >
+                              <Phone className="w-3.5 h-3.5" />
+                            </a>
+                          )}
                           <button
                             onClick={() => handleOpenEdit(g)}
                             className="p-1.5 text-[#8E8679] hover:text-[#722F37] hover:bg-[#FAF4EC] rounded-lg transition-all"

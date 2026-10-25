@@ -42,6 +42,9 @@ export default function BudgetTracker({ event, onUpdate }) {
   const totalPending = expenses
     .filter((e) => e.status === 'pendente')
     .reduce((sum, e) => sum + (Number(e.actualAmount) || 0), 0);
+  const totalPlanned = expenses
+    .filter((e) => e.status === 'planejado')
+    .reduce((sum, e) => sum + (Number(e.estimatedAmount) || 0), 0);
   const totalCommitted = totalPaid + totalPending;
 
   const remainingBudget = budgetLimit - totalCommitted;
@@ -89,13 +92,16 @@ export default function BudgetTracker({ event, onUpdate }) {
     e.preventDefault();
     if (!form.title.trim()) return;
 
+    const parsedEstimated = Math.max(0, parseFloat(String(form.estimatedAmount).replace(',', '.')) || 0);
+    const parsedActual = Math.max(0, parseFloat(String(form.actualAmount).replace(',', '.')) || 0);
+
     const data = {
       id: editingExpense ? editingExpense.id : `exp-${Date.now()}`,
       eventId: event.id,
       title: form.title.trim(),
       category: form.category,
-      estimatedAmount: Number(form.estimatedAmount) || 0,
-      actualAmount: Number(form.actualAmount) || 0,
+      estimatedAmount: parsedEstimated,
+      actualAmount: parsedActual,
       status: form.status,
       notes: form.notes.trim(),
     };
@@ -137,12 +143,12 @@ export default function BudgetTracker({ event, onUpdate }) {
     <div className="space-y-6">
       
       {/* Cards de Métricas Financeiras */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         
         <div className="bg-white border border-[#E8DFC8] rounded-2xl p-4 shadow-xs">
           <span className="text-[11px] uppercase tracking-wider text-[#7A7265] font-semibold block">Teto do Orçamento</span>
           <div className="mt-2">
-            <span className="font-serif text-2xl font-bold text-[#231F1C]">
+            <span className="font-serif text-xl font-bold text-[#231F1C] tabular-nums">
               {budgetLimit.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
             </span>
           </div>
@@ -151,25 +157,35 @@ export default function BudgetTracker({ event, onUpdate }) {
         <div className="bg-white border border-[#E8DFC8] rounded-2xl p-4 shadow-xs">
           <span className="text-[11px] uppercase tracking-wider text-[#7A7265] font-semibold block">Total Pago</span>
           <div className="mt-2">
-            <span className="font-serif text-2xl font-bold text-[#4E6037]">
+            <span className="font-serif text-xl font-bold text-[#4E6037] tabular-nums">
               {totalPaid.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
             </span>
           </div>
         </div>
 
         <div className="bg-white border border-[#E8DFC8] rounded-2xl p-4 shadow-xs">
-          <span className="text-[11px] uppercase tracking-wider text-[#7A7265] font-semibold block">Pendente de Pagamento</span>
+          <span className="text-[11px] uppercase tracking-wider text-[#7A7265] font-semibold block">Pendente de Pag.</span>
           <div className="mt-2">
-            <span className="font-serif text-2xl font-bold text-[#C69F54]">
+            <span className="font-serif text-xl font-bold text-[#C69F54] tabular-nums">
               {totalPending.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
             </span>
           </div>
         </div>
 
+        <div className="bg-white border border-[#E8DFC8] rounded-2xl p-4 shadow-xs">
+          <span className="text-[11px] uppercase tracking-wider text-[#7A7265] font-semibold block">Só Planejado</span>
+          <div className="mt-2">
+            <span className="font-serif text-xl font-bold text-[#8E8679] tabular-nums">
+              {totalPlanned.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+            </span>
+          </div>
+          <p className="text-[10px] text-[#A89F95] mt-1 leading-snug">Previsto, sem compromisso</p>
+        </div>
+
         <div className={`bg-white border rounded-2xl p-4 shadow-xs ${isOverBudget ? 'border-[#FCA5A5]' : 'border-[#E8DFC8]'}`}>
           <span className="text-[11px] uppercase tracking-wider text-[#7A7265] font-semibold block">Saldo Disponível</span>
-          <div className="mt-2 flex items-baseline gap-1">
-            <span className={`font-serif text-2xl font-bold ${isOverBudget ? 'text-[#DC2626]' : 'text-[#722F37]'}`}>
+          <div className="mt-2 flex items-baseline gap-1 flex-wrap">
+            <span className={`font-serif text-xl font-bold tabular-nums ${isOverBudget ? 'text-[#DC2626]' : 'text-[#722F37]'}`}>
               {remainingBudget.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
             </span>
             {isOverBudget && <span className="text-[10px] text-[#DC2626] font-bold uppercase">(Excedido)</span>}
@@ -199,7 +215,7 @@ export default function BudgetTracker({ event, onUpdate }) {
 
       {/* Ações e Tabela de Lançamentos */}
       <div className="flex items-center justify-between">
-        <h3 className="font-serif text-xl text-[#231F1C]">Lançamentos de Despesas</h3>
+        <h3 className="font-serif text-xl text-[#231F1C]">Despesas</h3>
 
         <div className="flex items-center gap-2">
           <button
@@ -207,7 +223,7 @@ export default function BudgetTracker({ event, onUpdate }) {
             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-white border border-[#D8CFC4] text-[#6A6357] hover:bg-[#FAF7F2] transition-all"
           >
             <Download className="w-3.5 h-3.5" />
-            <span>Exportar Orçamento</span>
+            <span>Exportar CSV</span>
           </button>
 
           <button
@@ -215,7 +231,7 @@ export default function BudgetTracker({ event, onUpdate }) {
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-[#722F37] hover:bg-[#581C23] text-white shadow-sm transition-all"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>Novo Lançamento</span>
+            <span>Adicionar Despesa</span>
           </button>
         </div>
       </div>
@@ -271,7 +287,7 @@ export default function BudgetTracker({ event, onUpdate }) {
                           ? 'bg-[#FEF9C3] text-[#854D0E]' 
                           : 'bg-[#F3F4F6] text-[#4B5563]'
                       }`}>
-                        {exp.status.toUpperCase()}
+                        {exp.status === 'pago' ? 'Pago' : exp.status === 'pendente' ? 'A pagar' : 'Planejado'}
                       </span>
                     </td>
 
@@ -312,7 +328,7 @@ export default function BudgetTracker({ event, onUpdate }) {
             
             <div className="flex items-center justify-between border-b border-[#F2ECE1] pb-3">
               <h3 className="font-serif text-xl text-[#231F1C]">
-                {editingExpense ? 'Editar Despesa' : 'Novo Lançamento de Orçamento'}
+                {editingExpense ? 'Editar Despesa' : 'Nova Despesa'}
               </h3>
               <button onClick={() => setIsModalOpen(false)} className="text-[#8E8679] hover:text-[#231F1C]">✕</button>
             </div>
@@ -351,9 +367,9 @@ export default function BudgetTracker({ event, onUpdate }) {
                     onChange={(e) => setForm({ ...form, status: e.target.value })}
                     className="w-full bg-[#FAF7F2] border border-[#E0D5C3] rounded-xl px-3.5 py-2 text-sm text-[#231F1C]"
                   >
-                    <option value="pago">Pago (Quitado)</option>
-                    <option value="pendente">Pendente de Pagamento</option>
-                    <option value="planejado">Planejado / Orçado</option>
+                    <option value="pago">Pago</option>
+                    <option value="pendente">A pagar</option>
+                    <option value="planejado">Planejado</option>
                   </select>
                 </div>
               </div>

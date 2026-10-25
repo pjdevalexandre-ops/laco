@@ -58,4 +58,18 @@
     background-color: white !important;
     color: black !important;
   }
+
+  /* Evitar quebras de página dentro de linhas de tabela e blocos de convidados */
+  .print-table tr,
+  .print-block {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Seções de categoria na ficha */
+  .print-section {
+    break-before: auto;
+    break-inside: avoid;
+    margin-bottom: 1.5rem;
+  }
 }

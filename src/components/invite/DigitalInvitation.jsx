@@ -44,6 +44,11 @@ export default function DigitalInvitation({
     preset: 'editorial_botanical'
   };
 
+  // Checa se o prazo de RSVP já expirou
+  const isDeadlineExpired = Boolean(
+    event.rsvpDeadline && new Date(`${event.rsvpDeadline}T23:59:59-03:00`).getTime() < Date.now()
+  );
+
   // Checa se o usuário atual no navegador já confirmou para este evento
   useEffect(() => {
     const savedRSVP = localStorage.getItem(`laco_rsvp_${event.id}`);
@@ -54,7 +59,7 @@ export default function DigitalInvitation({
         setSubmittedMessage({
           name: parsed.name,
           status: parsed.status,
-          total: parsed.adultsCount + parsed.childrenCount
+          total: (parsed.adultsCount || 0) + (parsed.childrenCount || 0)
         });
       } catch (e) {
         // ignora
@@ -74,13 +79,14 @@ export default function DigitalInvitation({
     formattedDate = event.date;
   }
 
-  // Contagem regressiva
+  // Contagem regressiva (Fuso horário oficial de Brasília -03:00)
   const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0 });
   useEffect(() => {
     try {
-      const targetTime = new Date(`${event.date}T${event.time || '18:00'}:00`).getTime();
+      const timeStr = event.time || '18:00';
+      const targetTime = new Date(`${event.date}T${timeStr}:00-03:00`).getTime();
       const updateTimer = () => {
-        const now = new Date().getTime();
+        const now = Date.now();
         const diff = targetTime - now;
         if (diff > 0) {
           const days = Math.floor(diff / (1000 * 60 * 60 * 24));
@@ -102,9 +108,22 @@ export default function DigitalInvitation({
   // Submissão do RSVP com validação e proteção anti-duplicidade
   const handleRsvpSubmit = (e) => {
     e.preventDefault();
-    if (!guestName.trim()) {
-      alert('Por favor, informe seu nome para confirmar.');
+    if (isDeadlineExpired) {
+      alert('O prazo de confirmação de presença para este evento já foi encerrado.');
       return;
+    }
+
+    if (!guestName.trim()) {
+      alert('Por favor, informe seu nome completo.');
+      return;
+    }
+
+    if (phone.trim()) {
+      const cleanPhone = phone.replace(/\D/g, '');
+      if (cleanPhone.length < 10) {
+        alert('Por favor, informe um número de telefone ou WhatsApp válido com DDD.');
+        return;
+      }
     }
 
     setIsSubmitting(true);
@@ -136,14 +155,17 @@ export default function DigitalInvitation({
       setIsSubmitting(false);
 
       if (responseStatus === 'confirmed') {
-        confetti({
-          particleCount: 80,
-          spread: 70,
-          origin: { y: 0.6 },
-          colors: [theme.primaryColor, theme.accentColor, '#F4E4DF']
-        });
+        const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (!prefersReduced) {
+          confetti({
+            particleCount: 70,
+            spread: 60,
+            origin: { y: 0.6 },
+            colors: [theme.primaryColor, theme.accentColor || '#C69F54', '#F4E4DF']
+          });
+        }
       }
-    }, 400);
+    }, 350);
   };
 
   const handleShare = () => {
@@ -197,7 +219,13 @@ export default function DigitalInvitation({
             {/* Monograma ou Ícone Artístico */}
             <div className="text-center">
               <div 
-                className="w-16 h-16 sm:w-20 sm:h-20 mx-auto rounded-full flex items-center justify-center font-serif text-2xl sm:text-3xl font-bold shadow-inner mb-4"
+                className={`w-20 h-20 sm:w-24 sm:h-24 mx-auto rounded-full flex items-center justify-center font-serif font-bold shadow-inner mb-4 px-2 whitespace-nowrap overflow-hidden ${
+                  (theme.monogram || event.title.charAt(0)).length > 3
+                    ? 'text-sm sm:text-base tracking-normal'
+                    : (theme.monogram || event.title.charAt(0)).length > 2
+                    ? 'text-lg sm:text-xl tracking-tight'
+                    : 'text-2xl sm:text-3xl'
+                }`}
                 style={{ 
                   backgroundColor: `${theme.primaryColor}12`, 
                   color: theme.primaryColor,
@@ -351,13 +379,22 @@ export default function DigitalInvitation({
             </div>
             <h2 className="font-serif text-2xl text-[#231F1C]">Você poderá comparecer?</h2>
             <p className="text-xs text-[#7A7265] mt-1 max-w-sm mx-auto">
-              {event.rsvpDeadline 
+              {isDeadlineExpired
+                ? `O prazo de confirmação encerrou em ${event.rsvpDeadline.split('-').reverse().join('/')}.`
+                : event.rsvpDeadline 
                 ? `Por favor, confirme sua presença até o dia ${event.rsvpDeadline.split('-').reverse().join('/')} para organizar os preparativos.`
                 : 'Sua confirmação é indispensável para organizarmos a recepção com carinho.'}
             </p>
           </div>
 
-          {alreadyAnswered && submittedMessage ? (
+          {isDeadlineExpired ? (
+            <div className="p-6 rounded-2xl bg-[#FBF9F6] border border-[#EAE2D5] text-center space-y-2">
+              <p className="font-serif text-lg text-[#231F1C] font-semibold">Prazo de Confirmações Encerrado</p>
+              <p className="text-xs text-[#6A6357] max-w-sm mx-auto leading-relaxed">
+                O prazo para responder a este convite encerrou em {event.rsvpDeadline.split('-').reverse().join('/')}. Caso precise avisar os anfitriões, por favor entre em contato diretamente com eles.
+              </p>
+            </div>
+          ) : alreadyAnswered && submittedMessage ? (
             <div className="p-6 rounded-2xl bg-[#F7F9F5] border border-[#D5E5CA] text-center space-y-3">
               <div className="w-12 h-12 rounded-full bg-[#EBF3E6] text-[#4E6037] flex items-center justify-center mx-auto">
                 <CheckCircle className="w-6 h-6" />
@@ -412,7 +449,7 @@ export default function DigitalInvitation({
               {/* Nome do Convidado */}
               <div>
                 <label className="block text-xs font-semibold text-[#3D362C] mb-1">
-                  Seu Nome Completo *
+                  Nome Completo *
                 </label>
                 <input
                   type="text"
@@ -431,7 +468,7 @@ export default function DigitalInvitation({
                 </label>
                 <input
                   type="tel"
-                  placeholder="(00) 00000-0000"
+                  placeholder="(11) 99999-9999"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   className="w-full bg-[#FAF7F2] border border-[#E0D5C3] rounded-xl px-3.5 py-2.5 text-sm text-[#231F1C] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#722F37]/30 focus:border-[#722F37]"

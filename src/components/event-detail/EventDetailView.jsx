@@ -129,13 +129,13 @@ export default function EventDetailView({
       {/* Abas de Navegação do Evento */}
       <div className="no-print border-b border-[#E8DFC8] flex items-center gap-1 overflow-x-auto pb-1 scrollbar-none">
         {[
-          { id: 'overview', label: 'Visão Geral', icon: Sparkles },
-          { id: 'invite', label: 'Convite & Prévia', icon: Palette },
+          { id: 'overview', label: 'Início', icon: Sparkles },
+          { id: 'invite', label: 'Convite', icon: Palette },
           { id: 'guests', label: `Convidados (${confirmedGuests}/${totalGuests})`, icon: Users },
-          { id: 'calculator', label: 'Calculadora de Consumo', icon: Calculator },
-          { id: 'shopping', label: `Lista de Compras (${shoppingBought}/${shopping.length})`, icon: ShoppingCart },
-          { id: 'budget', label: 'Orçamento & Despesas', icon: DollarSign },
-          { id: 'report', label: 'Ficha Imprimível', icon: Printer },
+          { id: 'calculator', label: 'Consumo', icon: Calculator },
+          { id: 'shopping', label: `Compras (${shoppingBought}/${shopping.length})`, icon: ShoppingCart },
+          { id: 'budget', label: 'Gastos', icon: DollarSign },
+          { id: 'report', label: 'Resumo', icon: Printer },
         ].map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -430,9 +430,9 @@ export default function EventDetailView({
             </div>
 
             {/* Tabela de Convidados Confirmados */}
-            <div>
+            <div className="print-section">
               <h4 className="font-serif text-lg font-bold border-b pb-1 mb-2">Lista de Convidados Confirmados</h4>
-              <table className="w-full text-left text-xs border-collapse">
+              <table className="print-table w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="border-b bg-gray-50">
                     <th className="py-2 px-2">Nome / Grupo</th>
@@ -444,7 +444,7 @@ export default function EventDetailView({
                 </thead>
                 <tbody className="divide-y">
                   {guests.filter(g => g.status === 'confirmed').map(g => (
-                    <tr key={g.id}>
+                    <tr key={g.id} className="print-block">
                       <td className="py-2 px-2 font-medium">{g.name}</td>
                       <td className="py-2 px-2">{g.phone || '—'}</td>
                       <td className="py-2 px-2 text-center">{g.adultsCount}</td>
@@ -457,9 +457,9 @@ export default function EventDetailView({
             </div>
 
             {/* Tabela de Despesas */}
-            <div>
+            <div className="print-section">
               <h4 className="font-serif text-lg font-bold border-b pb-1 mb-2">Resumo Financeiro & Despesas</h4>
-              <table className="w-full text-left text-xs border-collapse">
+              <table className="print-table w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="border-b bg-gray-50">
                     <th className="py-2 px-2">Fornecedor / Item</th>
@@ -471,7 +471,7 @@ export default function EventDetailView({
                 </thead>
                 <tbody className="divide-y">
                   {expenses.map(e => (
-                    <tr key={e.id}>
+                    <tr key={e.id} className="print-block">
                       <td className="py-2 px-2 font-medium">{e.title}</td>
                       <td className="py-2 px-2 capitalize">{e.category}</td>
                       <td className="py-2 px-2 text-right">{(Number(e.estimatedAmount) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>

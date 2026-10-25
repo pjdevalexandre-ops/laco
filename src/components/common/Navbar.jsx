@@ -1,7 +1,14 @@
 import React from 'react';
-import { Sparkles, Calendar, Plus, ExternalLink, RefreshCw, Layers } from 'lucide-react';
+import { Calendar, Plus, Layers, LogOut, User } from 'lucide-react';
 
-export default function Navbar({ currentView, setCurrentView, selectedEvent, onNewEvent, onResetDemo }) {
+export default function Navbar({ 
+  currentView, 
+  setCurrentView, 
+  selectedEvent, 
+  onNewEvent, 
+  currentUser, 
+  onLogout 
+}) {
   return (
     <header className="no-print bg-[#FAF7F2] border-b border-[#E8DFC8] sticky top-0 z-40 backdrop-blur-md bg-opacity-90">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -43,14 +50,15 @@ export default function Navbar({ currentView, setCurrentView, selectedEvent, onN
             {selectedEvent && (
               <button
                 onClick={() => setCurrentView('event_detail')}
+                title={selectedEvent.title}
                 className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-medium transition-all ${
                   currentView === 'event_detail'
                     ? 'bg-[#EFE9DF] text-[#722F37] shadow-xs'
                     : 'text-[#6A6357] hover:text-[#231F1C] hover:bg-[#F2ECE1]'
                 }`}
               >
-                <Layers className="w-4 h-4" />
-                <span className="max-w-[130px] sm:max-w-[200px] truncate">{selectedEvent.title}</span>
+                <Layers className="w-4 h-4 shrink-0" />
+                <span className="max-w-[120px] sm:max-w-[200px] truncate">{selectedEvent.title}</span>
               </button>
             )}
 
@@ -62,13 +70,25 @@ export default function Navbar({ currentView, setCurrentView, selectedEvent, onN
               <span className="hidden xs:inline">Novo Convite</span>
             </button>
 
-            <button
-              onClick={onResetDemo}
-              title="Restaurar dados de demonstração"
-              className="p-2 text-[#8E8679] hover:text-[#722F37] hover:bg-[#F2ECE1] rounded-xl transition-all"
-            >
-              <RefreshCw className="w-4 h-4" />
-            </button>
+            {/* Usuário / Logout */}
+            {currentUser && (
+              <div className="flex items-center gap-2 pl-2 border-l border-[#E8DFC8]">
+                <div className="hidden md:flex flex-col text-right">
+                  <span className="text-xs font-semibold text-[#231F1C] max-w-[130px] truncate">
+                    {currentUser.email}
+                  </span>
+                  <span className="text-[10px] text-[#8E8679]">Organizador</span>
+                </div>
+
+                <button
+                  onClick={onLogout}
+                  title="Sair da conta"
+                  className="p-2 text-[#8E8679] hover:text-[#DC2626] hover:bg-[#FDF2F2] rounded-xl transition-all"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>

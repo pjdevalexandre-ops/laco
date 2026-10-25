@@ -17,11 +17,11 @@ import { calculateEventSupplies, DEFAULT_CONSUMPTION_FACTORS } from '../../servi
 import { storage } from '../../services/storage';
 
 export default function EventCalculator({ event, confirmedGuestsCount, totalGuestsCount, onGoToShopping }) {
-  // Configuração inicial baseada nos confirmados (ou total se confirmados for 0)
-  const basePeople = confirmedGuestsCount > 0 ? confirmedGuestsCount : (totalGuestsCount > 0 ? totalGuestsCount : 50);
+  const confirmedNum = Number(confirmedGuestsCount) || 0;
   
-  const [adultsCount, setAdultsCount] = useState(Math.round(basePeople * 0.85));
-  const [childrenCount, setChildrenCount] = useState(Math.max(0, basePeople - Math.round(basePeople * 0.85)));
+  // Se houver confirmados reais, usa-os; caso contrário, inicia com 0
+  const [adultsCount, setAdultsCount] = useState(confirmedNum > 0 ? Math.round(confirmedNum * 0.85) : 0);
+  const [childrenCount, setChildrenCount] = useState(confirmedNum > 0 ? Math.max(0, confirmedNum - Math.round(confirmedNum * 0.85)) : 0);
   const [hasAlcohol, setHasAlcohol] = useState(event.eventType !== 'infantil');
   const [customFactors, setCustomFactors] = useState({});
   const [copiedToShopping, setCopiedToShopping] = useState(false);
@@ -72,6 +72,21 @@ export default function EventCalculator({ event, confirmedGuestsCount, totalGues
   return (
     <div className="space-y-6">
       
+      {/* Alerta quando ainda não há confirmados */}
+      {confirmedNum === 0 && adultsCount === 0 && childrenCount === 0 && (
+        <div className="bg-[#FAF4EC] border border-[#E3D7C5] rounded-2xl p-4 sm:p-5 flex items-start gap-3.5">
+          <div className="w-8 h-8 rounded-lg bg-[#EFE9DF] text-[#722F37] flex items-center justify-center shrink-0 mt-0.5">
+            <Info className="w-4 h-4" />
+          </div>
+          <div>
+            <h4 className="text-xs font-bold uppercase tracking-wider text-[#722F37]">Ainda não há presenças confirmadas</h4>
+            <p className="text-xs text-[#6A6357] mt-0.5 leading-relaxed">
+              Este evento ainda não possui confirmações registradas. Digite a quantidade de adultos e crianças manualmente abaixo para calcular os suprimentos necessários.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Alerta de Esclarecimento sobre Estimativas */}
       <div className="bg-[#FAF4EC] border border-[#E3D7C5] rounded-2xl p-4 sm:p-5 flex items-start gap-3.5">
         <div className="w-8 h-8 rounded-lg bg-[#EFE9DF] text-[#722F37] flex items-center justify-center shrink-0 mt-0.5">
@@ -95,13 +110,18 @@ export default function EventCalculator({ event, confirmedGuestsCount, totalGues
 
           <div className="flex items-center gap-3">
             <button
+              disabled={confirmedNum === 0}
               onClick={() => {
-                setAdultsCount(Math.round(basePeople * 0.85));
-                setChildrenCount(Math.max(0, basePeople - Math.round(basePeople * 0.85)));
+                if (confirmedNum > 0) {
+                  setAdultsCount(Math.round(confirmedNum * 0.85));
+                  setChildrenCount(Math.max(0, confirmedNum - Math.round(confirmedNum * 0.85)));
+                }
               }}
-              className="text-xs font-semibold text-[#722F37] hover:underline"
+              className={`text-xs font-semibold ${
+                confirmedNum > 0 ? 'text-[#722F37] hover:underline cursor-pointer' : 'text-[#A69C8E] cursor-not-allowed'
+              }`}
             >
-              Usar {basePeople} confirmados do evento
+              {confirmedNum > 0 ? `Usar ${confirmedNum} confirmados do evento` : 'Nenhum confirmado ainda'}
             </button>
             <button
               onClick={handleResetFactors}
@@ -177,7 +197,7 @@ export default function EventCalculator({ event, confirmedGuestsCount, totalGues
                     {item.category}
                   </span>
                   <span className="text-[11px] text-[#8E8679] font-medium">
-                    {item.perAdult} un / adulto
+                    {item.perAdult} {item.consumptionUnit || 'un'} / adulto
                   </span>
                 </div>
 
@@ -224,7 +244,7 @@ export default function EventCalculator({ event, confirmedGuestsCount, totalGues
                     onChange={(e) => handleFactorChange(item.key, 'perAdult', e.target.value)}
                     className="w-14 bg-[#FAF7F2] border border-[#D8CFC4] rounded px-1.5 py-0.5 text-center text-xs font-bold"
                   />
-                  <span className="text-[10px] text-[#8E8679]">un/ad.</span>
+                  <span className="text-[10px] text-[#8E8679]">{item.consumptionUnit || 'un'}/ad.</span>
                 </div>
               </div>
 

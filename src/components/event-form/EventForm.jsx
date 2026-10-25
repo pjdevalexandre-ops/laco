@@ -50,26 +50,35 @@ export default function EventForm({ eventToEdit = null, onSave, onCancel }) {
     }
   });
 
+  const [isDirty, setIsDirty] = useState(false);
   const [activeTab, setActiveTab] = useState('editor'); // 'editor' | 'preview'
   const [previewDevice, setPreviewDevice] = useState('mobile'); // 'mobile' | 'desktop'
 
-  // Gera slug automaticamente se for novo evento
+  // Gera slug automaticamente se for novo evento com sufixo aleatório único contra adivinhação
   const handleTitleChange = (val) => {
+    setIsDirty(true);
     const updated = { ...formData, title: val };
     if (!isEditing && !formData.slug) {
-      const generatedSlug = val
+      const baseSlug = val
         .toLowerCase()
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
         .replace(/[^a-z0-9]/g, '-')
         .replace(/-+/g, '-')
         .replace(/^-|-$/g, '');
-      updated.slug = generatedSlug;
+      const uniqueSuffix = Math.random().toString(36).substring(2, 7);
+      updated.slug = baseSlug ? `${baseSlug}-${uniqueSuffix}` : `evento-${uniqueSuffix}`;
     }
     setFormData(updated);
   };
 
+  const handleFieldChange = (field, val) => {
+    setIsDirty(true);
+    setFormData((prev) => ({ ...prev, [field]: val }));
+  };
+
   const handleApplyPreset = (preset) => {
+    setIsDirty(true);
     setFormData({
       ...formData,
       theme: {
@@ -84,6 +93,13 @@ export default function EventForm({ eventToEdit = null, onSave, onCancel }) {
     });
   };
 
+  const handleSafeCancel = () => {
+    if (isDirty && !window.confirm('Existem alterações não salvas no convite. Deseja realmente sair sem salvar?')) {
+      return;
+    }
+    onCancel();
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!formData.title.trim()) {
@@ -93,10 +109,11 @@ export default function EventForm({ eventToEdit = null, onSave, onCancel }) {
 
     const saved = storage.saveEvent({
       ...formData,
-      slug: formData.slug || `evento-${Date.now()}`,
+      slug: formData.slug || `evento-${Math.random().toString(36).substring(2, 7)}`,
       createdAt: eventToEdit?.createdAt || new Date().toISOString(),
     });
 
+    setIsDirty(false);
     onSave(saved);
   };
 
@@ -107,7 +124,7 @@ export default function EventForm({ eventToEdit = null, onSave, onCancel }) {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#E8DFC8]">
         <div className="flex items-center gap-3">
           <button
-            onClick={onCancel}
+            onClick={handleSafeCancel}
             className="p-2 rounded-xl text-[#6A6357] hover:bg-[#EFE9DF] transition-all"
             title="Voltar"
           >

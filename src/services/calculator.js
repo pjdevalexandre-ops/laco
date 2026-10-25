@@ -89,6 +89,7 @@ export const DEFAULT_CONSUMPTION_FACTORS = {
     defaultPerAdult: 4,
     defaultPerChild: 4,
     unit: 'un',
+    consumptionUnit: 'un',
     packSize: 50,
     description: '4 copos por pessoa (pessoas costumam trocar de copo durante a festa).',
   },
@@ -98,6 +99,7 @@ export const DEFAULT_CONSUMPTION_FACTORS = {
     defaultPerAdult: 2,
     defaultPerChild: 2,
     unit: 'un',
+    consumptionUnit: 'un',
     packSize: 50,
     description: '2 pratinhos por pessoa.',
   },
@@ -107,6 +109,7 @@ export const DEFAULT_CONSUMPTION_FACTORS = {
     defaultPerAdult: 10,
     defaultPerChild: 10,
     unit: 'pacotes 50un',
+    consumptionUnit: 'un',
     factorToPack: 50,
     description: 'Média de 8 a 10 guardanapos por convidado.',
   }
@@ -130,31 +133,30 @@ export function calculateEventSupplies(adultsCount, childrenCount, customFactors
 
     const perAdult = customFactors[key]?.perAdult ?? config.defaultPerAdult;
     const perChild = customFactors[key]?.perChild ?? config.defaultPerChild;
+    const cUnit = config.consumptionUnit || (key === 'bolo' ? 'g' : ['refrigerante','suco','agua','cerveja','espumante'].includes(key) ? 'ml' : 'un');
 
     const rawTotal = (safeAdults * perAdult) + (safeChildren * perChild);
 
     let displayQuantity = rawTotal;
     let purchaseQuantity = rawTotal;
     let purchaseUnit = config.unit;
-    let formula = `${safeAdults} adultos × ${perAdult} + ${safeChildren} crianças × ${perChild}`;
+    let formula = `${safeAdults} adultos × ${perAdult}${cUnit} + ${safeChildren} crianças × ${perChild}${cUnit}`;
 
     if (key === 'bolo') {
       // Gramas -> kg
       displayQuantity = (rawTotal / 1000).toFixed(1);
       purchaseQuantity = Math.ceil(rawTotal / 1000);
       purchaseUnit = 'kg';
-      formula = `(${safeAdults} × ${perAdult}g + ${safeChildren} × ${perChild}g) = ${(rawTotal/1000).toFixed(1)} kg`;
+      formula = `(${safeAdults} × ${perAdult}g + ${safeChildren} × ${perChild}g) = ${(rawTotal/1000).toFixed(1)} kg (sugestão: ${purchaseQuantity} kg)`;
     } else if (config.factorToPack) {
-      // ml -> garrafas / latas / pacotes
       const units = rawTotal / config.factorToPack;
       displayQuantity = units.toFixed(1);
       purchaseQuantity = Math.ceil(units);
-      formula = `${rawTotal} ml / ${config.factorToPack} ml por unidade = ${displayQuantity} ${config.unit}`;
+      formula = `${rawTotal} ${cUnit} / ${config.factorToPack} ${cUnit} por unidade = ${displayQuantity} ${config.unit} (sugestão: ${purchaseQuantity} ${config.unit})`;
     } else if (config.packSize) {
-      // Arredonda para múltiplos do tamanho da embalagem
       purchaseQuantity = Math.ceil(rawTotal / config.packSize) * config.packSize;
       displayQuantity = rawTotal;
-      formula = `${rawTotal} un (sugestão de compra: ${purchaseQuantity} un em pacotes de ${config.packSize})`;
+      formula = `${rawTotal} ${cUnit} (sugestão: ${purchaseQuantity} un em pacotes de ${config.packSize})`;
     }
 
     results[key] = {
@@ -163,6 +165,7 @@ export function calculateEventSupplies(adultsCount, childrenCount, customFactors
       category: config.category,
       perAdult,
       perChild,
+      consumptionUnit: cUnit,
       rawTotal,
       displayQuantity,
       purchaseQuantity,
