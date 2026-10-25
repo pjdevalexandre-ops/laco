@@ -78,12 +78,14 @@ export default function App() {
     };
   }, [currentView]);
 
-  // Carrega eventos da nuvem Supabase ao iniciar o painel
+  // Sincroniza eventos com a nuvem Supabase ao iniciar o painel
   useEffect(() => {
-    storage.fetchAllEventsFromCloud().then((cloudEvents) => {
-      if (cloudEvents && cloudEvents.length > 0) {
-        setEvents(cloudEvents);
-      }
+    storage.syncAllLocalEventsToCloud().then(() => {
+      storage.fetchAllEventsFromCloud().then((cloudEvents) => {
+        if (cloudEvents && cloudEvents.length > 0) {
+          setEvents(cloudEvents);
+        }
+      });
     });
   }, []);
 

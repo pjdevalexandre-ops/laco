@@ -341,6 +341,20 @@ export const storage = {
     return eventData;
   },
 
+  syncAllLocalEventsToCloud: async () => {
+    if (!supabase) return;
+    try {
+      const local = storage.getEvents();
+      for (const evt of local) {
+        if (evt.slug) {
+          await storage.syncEventToCloud(evt);
+        }
+      }
+    } catch (e) {
+      console.warn('Erro ao sincronizar eventos locais para a nuvem:', e);
+    }
+  },
+
   syncEventToCloud: async (event) => {
     if (!supabase) return;
     try {
