@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --color-ivory: #FAF7F2;
+    --color-sand: #EFE9DF;
+    --color-sand-dark: #D8CFC4;
+    --color-wine: #722F37;
+    --color-wine-dark: #4F1D23;
+    --color-wine-light: #8E3E47;
+    --color-olive: #4E6037;
+    --color-olive-dark: #374624;
+    --color-rose: #D8A49B;
+    --color-rose-light: #F4E4DF;
+    --color-dark: #231F1C;
+    --color-gold: #C69F54;
+  }
+
+  body {
+    background-color: var(--color-ivory);
+    color: var(--color-dark);
+    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    min-height: 100vh;
+    margin: 0;
+    padding: 0;
+  }
+
+  h1, h2, h3, .font-display {
+    font-family: 'DM Serif Display', Georgia, serif;
+  }
+}
+
+/* Custom scrollbar for elegant look */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #FAF7F2;
+}
+::-webkit-scrollbar-thumb {
+  background: #D8CFC4;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #B8ADA0;
+}
+
+/* Print Stylesheet for Reports & Summary */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  body {
+    background-color: white !important;
+    color: black !important;
+  }
+}
