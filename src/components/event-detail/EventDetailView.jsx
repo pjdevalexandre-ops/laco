@@ -53,7 +53,7 @@ export default function EventDetailView({
   const shopping = storage.getShopping(event.id);
   const shoppingBought = shopping.filter((s) => s.isPurchased).length;
 
-  const publicUrl = `${window.location.origin}#invite=${event.slug || event.id}`;
+  const publicUrl = `${window.location.origin}/#invite=${event.slug || event.id}`;
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(publicUrl);

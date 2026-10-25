@@ -253,7 +253,7 @@ export default function GuestManager({ event, onUpdate }) {
       {(() => {
         const pendingWithPhone = guests.filter(g => g.status === 'pending' && g.phone);
         if (pendingWithPhone.length === 0) return null;
-        const publicUrl = `${window.location.origin}#invite=${event.slug || event.id}`;
+        const publicUrl = `${window.location.origin}/#invite=${event.slug || event.id}`;
         return (
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-[#F0FDF4] border border-[#86EFAC] rounded-2xl px-5 py-4">
             <div className="flex items-center gap-3">
@@ -394,7 +394,7 @@ export default function GuestManager({ event, onUpdate }) {
                 <div className="flex items-center gap-1">
                   {g.status === 'pending' && g.phone && (
                     <a
-                      href={`https://wa.me/55${g.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá, ${g.name.split(' ')[0]}! 😊 Ainda não recebemos sua confirmação para o evento. Consegue confirmar sua presença pelo link? ${window.location.origin}#invite=${event.slug || event.id}`)}`}
+                      href={`https://wa.me/55${g.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá, ${g.name.split(' ')[0]}! 😊 Ainda não recebemos sua confirmação para o evento. Consegue confirmar sua presença pelo link? ${window.location.origin}/#invite=${event.slug || event.id}`)}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={(e) => e.stopPropagation()}
@@ -513,7 +513,7 @@ export default function GuestManager({ event, onUpdate }) {
                         <div className="inline-flex items-center gap-1">
                           {g.status === 'pending' && g.phone && (
                             <a
-                              href={`https://wa.me/55${g.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá, ${g.name.split(' ')[0]}! 😊 Ainda não recebemos sua confirmação para o evento. Consegue confirmar sua presença pelo link? ${window.location.origin}#invite=${event.slug || event.id}`)}`}
+                              href={`https://wa.me/55${g.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá, ${g.name.split(' ')[0]}! 😊 Ainda não recebemos sua confirmação para o evento. Consegue confirmar sua presença pelo link? ${window.location.origin}/#invite=${event.slug || event.id}`)}`}
                               target="_blank"
                               rel="noopener noreferrer"
                               title="Cobrar confirmação via WhatsApp"

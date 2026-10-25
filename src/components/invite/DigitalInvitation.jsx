@@ -13,7 +13,8 @@ import {
   Copy,
   Check,
   ArrowLeft,
-  Navigation
+  Navigation,
+  Phone
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { storage } from '../../services/storage';
@@ -169,7 +170,7 @@ export default function DigitalInvitation({
   };
 
   const handleShare = () => {
-    const shareUrl = `${window.location.origin}#invite=${event.slug || event.id}`;
+    const shareUrl = `${window.location.origin}/#invite=${event.slug || event.id}`;
     if (navigator.share) {
       navigator.share({
         title: event.title,
@@ -340,21 +341,32 @@ export default function DigitalInvitation({
 
             </div>
 
-            {/* BOTÃO DE COMPARTILHAMENTO */}
-            <div className="mt-6 pt-4 text-center border-t border-[#F2ECE1]">
+            {/* BOTÕES DE COMPARTILHAMENTO */}
+            <div className="mt-6 pt-5 border-t border-[#F2ECE1] flex flex-col sm:flex-row items-center justify-center gap-2.5">
+              <a
+                href={`https://wa.me/?text=${encodeURIComponent(`Você foi convidado com muito carinho para: ${event.title}! ✨\n\nAcesse o link abaixo para ver todos os detalhes e confirmar sua presença:\n${window.location.origin}/#invite=${event.slug || event.id}`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 text-xs font-semibold px-4 py-2 rounded-xl bg-[#25D366] hover:bg-[#1EBE5D] text-white shadow-xs transition-all"
+              >
+                <Phone className="w-3.5 h-3.5" />
+                <span>Enviar no WhatsApp</span>
+              </a>
+
               <button
+                type="button"
                 onClick={handleShare}
-                className="inline-flex items-center gap-2 text-xs font-semibold text-[#6A6357] hover:text-[#231F1C] transition-colors"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 text-xs font-semibold px-4 py-2 rounded-xl bg-[#FAF7F2] border border-[#E0D5C3] text-[#6A6357] hover:text-[#231F1C] hover:bg-white transition-all"
               >
                 {copiedLink ? (
                   <>
-                    <Check className="w-4 h-4 text-[#4E6037]" />
-                    <span className="text-[#4E6037]">Link copiado para a área de transferência!</span>
+                    <Check className="w-3.5 h-3.5 text-[#4E6037]" />
+                    <span className="text-[#4E6037]">Link copiado!</span>
                   </>
                 ) : (
                   <>
-                    <Share2 className="w-4 h-4" />
-                    <span>Compartilhar este convite</span>
+                    <Share2 className="w-3.5 h-3.5" />
+                    <span>Copiar Link</span>
                   </>
                 )}
               </button>

@@ -61,7 +61,7 @@ export default function Dashboard({
 
   const handleCopyLink = (event, e) => {
     e.stopPropagation();
-    const url = `${window.location.origin}#invite=${event.slug || event.id}`;
+    const url = `${window.location.origin}/#invite=${event.slug || event.id}`;
     navigator.clipboard.writeText(url);
     setCopiedId(event.id);
     setTimeout(() => setCopiedId(null), 2000);
