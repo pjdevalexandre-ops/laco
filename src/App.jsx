@@ -44,11 +44,20 @@ export default function App() {
 
   // Monitora hash na URL para rota pública direta de convite: e.g. #invite=casamento-clara-e-lucas
   useEffect(() => {
-    const handleHashChange = () => {
+    let isMounted = true;
+    const handleHashChange = async () => {
       const hash = window.location.hash;
       if (hash.startsWith('#invite=')) {
         const slugOrId = hash.replace('#invite=', '').trim();
-        const found = storage.getEventById(slugOrId);
+        let found = storage.getEventById(slugOrId);
+        
+        // Se não encontrou no armazenamento local deste aparelho, busca na nuvem Supabase!
+        if (!found) {
+          found = await storage.fetchEventFromCloud(slugOrId);
+        }
+
+        if (!isMounted) return;
+
         if (found) {
           setSelectedEvent(found);
           setCurrentView('public_invite');
@@ -63,8 +72,20 @@ export default function App() {
 
     handleHashChange();
     window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
+    return () => {
+      isMounted = false;
+      window.removeEventListener('hashchange', handleHashChange);
+    };
   }, [currentView]);
+
+  // Carrega eventos da nuvem Supabase ao iniciar o painel
+  useEffect(() => {
+    storage.fetchAllEventsFromCloud().then((cloudEvents) => {
+      if (cloudEvents && cloudEvents.length > 0) {
+        setEvents(cloudEvents);
+      }
+    });
+  }, []);
 
   // Escuta atualizações de storage para manter dados sincronizados
   useEffect(() => {

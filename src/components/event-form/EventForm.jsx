@@ -22,7 +22,7 @@ export default function EventForm({ eventToEdit = null, onSave, onCancel }) {
 
   // Form State
   const [formData, setFormData] = useState({
-    id: eventToEdit?.id || `evt-${Date.now()}`,
+    id: eventToEdit?.id || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `evt-${Date.now()}`),
     slug: eventToEdit?.slug || '',
     title: eventToEdit?.title || '',
     eventType: eventToEdit?.eventType || 'casamento',

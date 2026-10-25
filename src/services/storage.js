@@ -1,4 +1,5 @@
-// Armazenamento local com sincronização e dados iniciais de demonstração para LAÇO
+// Armazenamento híbrido (Local + Supabase Nuvem) para LAÇO
+import { supabase } from './supabase';
 
 const STORAGE_KEYS = {
   EVENTS: 'laco_events_v1',
@@ -328,14 +329,162 @@ export const storage = {
 
   saveEvent: (eventData) => {
     const events = storage.getEvents();
-    const index = events.findIndex((e) => e.id === eventData.id);
+    const index = events.findIndex((e) => e.id === eventData.id || (eventData.slug && e.slug === eventData.slug));
     if (index >= 0) {
       events[index] = { ...events[index], ...eventData };
     } else {
       events.unshift(eventData);
     }
     storage.saveEvents(events);
+    // Sincroniza em segundo plano com a nuvem Supabase
+    storage.syncEventToCloud(eventData);
     return eventData;
+  },
+
+  syncEventToCloud: async (event) => {
+    if (!supabase) return;
+    try {
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(event.id);
+      const payload = {
+        slug: event.slug,
+        title: event.title,
+        event_type: event.eventType || 'casamento',
+        hosts: event.hosts || '',
+        date: event.date,
+        time: event.time || '18:00',
+        location_name: event.locationName || '',
+        location_address: event.locationAddress || '',
+        maps_url: event.mapsUrl || '',
+        custom_message: event.customMessage || '',
+        extra_info: event.extraInfo || '',
+        theme: event.theme || {},
+        rsvp_deadline: event.rsvpDeadline || null,
+        allow_group_rsvp: Boolean(event.allowGroupRsvp),
+        max_group_size: Number(event.maxGroupSize) || 5,
+        budget_limit: Number(event.budgetLimit) || 0,
+        is_archived: Boolean(event.isArchived),
+        created_at: event.createdAt || new Date().toISOString(),
+      };
+      if (isUuid) {
+        payload.id = event.id;
+      }
+      
+      const { data, error } = await supabase
+        .from('events')
+        .upsert(payload, { onConflict: 'slug' })
+        .select();
+
+      if (!error && data && data[0]) {
+        if (event.id !== data[0].id) {
+          event.id = data[0].id;
+          const currentEvents = storage.getEvents();
+          const idx = currentEvents.findIndex(e => e.slug === event.slug);
+          if (idx >= 0) {
+            currentEvents[idx].id = data[0].id;
+            localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(currentEvents));
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Falha na sincronização cloud:', e);
+    }
+  },
+
+  fetchEventFromCloud: async (slugOrId) => {
+    if (!supabase) return null;
+    try {
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slugOrId);
+      let query = supabase.from('events').select('*');
+      if (isUuid) {
+        query = query.or(`slug.eq.${slugOrId},id.eq.${slugOrId}`);
+      } else {
+        query = query.eq('slug', slugOrId);
+      }
+      
+      const { data, error } = await query.maybeSingle();
+      if (error || !data) return null;
+
+      const normalized = {
+        id: data.id,
+        slug: data.slug,
+        title: data.title,
+        eventType: data.event_type || 'casamento',
+        hosts: data.hosts,
+        date: data.date,
+        time: data.time ? data.time.substring(0, 5) : '18:00',
+        locationName: data.location_name,
+        locationAddress: data.location_address,
+        mapsUrl: data.maps_url,
+        customMessage: data.custom_message,
+        extraInfo: data.extra_info,
+        theme: data.theme || {},
+        rsvpDeadline: data.rsvp_deadline,
+        allowGroupRsvp: data.allow_group_rsvp ?? true,
+        maxGroupSize: data.max_group_size || 5,
+        budgetLimit: Number(data.budget_limit) || 0,
+        isArchived: Boolean(data.is_archived),
+        createdAt: data.created_at,
+      };
+
+      const current = storage.getEvents();
+      const existingIdx = current.findIndex(e => e.id === normalized.id || e.slug === normalized.slug);
+      if (existingIdx >= 0) {
+        current[existingIdx] = normalized;
+      } else {
+        current.push(normalized);
+      }
+      localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(current));
+      window.dispatchEvent(new Event('laco_storage_updated'));
+      return normalized;
+    } catch (e) {
+      console.warn('Erro ao buscar evento no Supabase:', e);
+      return null;
+    }
+  },
+
+  fetchAllEventsFromCloud: async () => {
+    if (!supabase) return storage.getEvents();
+    try {
+      const { data, error } = await supabase.from('events').select('*').order('created_at', { ascending: false });
+      if (error || !data || data.length === 0) return storage.getEvents();
+
+      const cloudEvents = data.map(d => ({
+        id: d.id,
+        slug: d.slug,
+        title: d.title,
+        eventType: d.event_type || 'casamento',
+        hosts: d.hosts,
+        date: d.date,
+        time: d.time ? d.time.substring(0, 5) : '18:00',
+        locationName: d.location_name,
+        locationAddress: d.location_address,
+        mapsUrl: d.maps_url,
+        customMessage: d.custom_message,
+        extraInfo: d.extra_info,
+        theme: d.theme || {},
+        rsvpDeadline: d.rsvp_deadline,
+        allowGroupRsvp: d.allow_group_rsvp ?? true,
+        maxGroupSize: d.max_group_size || 5,
+        budgetLimit: Number(d.budget_limit) || 0,
+        isArchived: Boolean(d.is_archived),
+        createdAt: d.created_at,
+      }));
+
+      const local = storage.getEvents();
+      const mergedMap = new Map();
+      cloudEvents.forEach(e => mergedMap.set(e.slug || e.id, e));
+      local.forEach(e => {
+        if (!mergedMap.has(e.slug || e.id)) {
+          mergedMap.set(e.slug || e.id, e);
+        }
+      });
+      const merged = Array.from(mergedMap.values());
+      localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(merged));
+      window.dispatchEvent(new Event('laco_storage_updated'));
+      return merged;
+    } catch (e) {
+      return storage.getEvents();
+    }
   },
 
   deleteEvent: (id) => {
@@ -382,7 +531,65 @@ export const storage = {
       allGuests.push(guestData);
     }
     storage.saveGuests(allGuests);
+    // Sincroniza presença na nuvem Supabase
+    storage.syncGuestToCloud(guestData);
     return guestData;
+  },
+
+  syncGuestToCloud: async (guest) => {
+    if (!supabase) return;
+    try {
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(guest.eventId);
+      if (!isUuid) return;
+
+      const isGuestUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(guest.id);
+      const payload = {
+        event_id: guest.eventId,
+        name: guest.name,
+        phone: guest.phone || null,
+        status: guest.status || 'pending',
+        adults_count: Number(guest.adultsCount) || 1,
+        children_count: Number(guest.childrenCount) || 0,
+        notes: guest.notes || null,
+        confirmed_at: guest.confirmedAt || new Date().toISOString()
+      };
+      if (isGuestUuid) {
+        payload.id = guest.id;
+      }
+
+      await supabase.from('guests').upsert(payload);
+    } catch (e) {
+      console.warn('Falha silenciosa ao sincronizar convidado:', e);
+    }
+  },
+
+  fetchGuestsFromCloud: async (eventId) => {
+    if (!supabase || !eventId) return storage.getGuests(eventId);
+    try {
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(eventId);
+      if (!isUuid) return storage.getGuests(eventId);
+
+      const { data, error } = await supabase.from('guests').select('*').eq('event_id', eventId);
+      if (error || !data) return storage.getGuests(eventId);
+
+      const normalizedGuests = data.map(g => ({
+        id: g.id,
+        eventId: g.event_id,
+        name: g.name,
+        phone: g.phone || '',
+        status: g.status,
+        adultsCount: g.adults_count || 1,
+        childrenCount: g.children_count || 0,
+        notes: g.notes || '',
+        confirmedAt: g.confirmed_at,
+      }));
+
+      const allGuests = storage.getGuests().filter(g => g.eventId !== eventId).concat(normalizedGuests);
+      storage.saveGuests(allGuests);
+      return normalizedGuests;
+    } catch (e) {
+      return storage.getGuests(eventId);
+    }
   },
 
   deleteGuest: (guestId) => {

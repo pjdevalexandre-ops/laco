@@ -20,6 +20,15 @@ import { storage } from '../../services/storage';
 export default function GuestManager({ event, onUpdate }) {
   const [guests, setGuests] = useState(() => storage.getGuests(event.id));
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Sincroniza convidados do Supabase em tempo real ao abrir a tela
+  React.useEffect(() => {
+    storage.fetchGuestsFromCloud(event.id).then((cloudGuests) => {
+      if (cloudGuests && cloudGuests.length > 0) {
+        setGuests(cloudGuests);
+      }
+    });
+  }, [event.id]);
   const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'confirmed' | 'pending' | 'declined'
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingGuest, setEditingGuest] = useState(null);
